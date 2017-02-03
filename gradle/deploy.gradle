@@ -1,0 +1,87 @@
+task deploy() {
+    group = 'deploy'
+    dependsOn 'shadowJar'
+    description "Deploys the Lambda using SAM and the AWS Cli, The cli must be installed and configured with creds\n" +
+            "-Pregion=[xxxxx], is a required gradle project property and is used for setting the region that this lambda will be run from and the backups will live\n" +
+            "-Plambda-bucket=[xxxxx], is a required gradle project property and is used for uploading the fat jar to s3 for cf to use when created the lambda fn, the bucket must be in the same region"
+
+    doLast {
+        def requiredProjectProperties = [
+                'region',
+                'lambda-bucket'
+        ]
+
+        requiredProjectProperties.each { prop ->
+            if (! project.hasProperty(prop)) {
+                throw new GradleException("${prop} is a required gradle project properties for running the deploy task" +
+                        "See ./gradlew tasks for more information")
+            }
+        }
+
+        def region = project.region
+        def bucketName = project.'lambda-bucket'
+
+        File sam = new File("${project.buildDir.absolutePath}/sam")
+        sam.mkdirs()
+        File applicationYaml = new File("${project.rootDir.absolutePath}/application.yaml")
+        File fatJar = new File("${project.buildDir.absolutePath}/libs/${artifactId}.jar")
+        File appYamlCopy = new File("${sam.absolutePath}/deploy.yaml")
+        File fatJarCopy = new File("${sam.absolutePath}/${artifactId}.jar")
+        appYamlCopy << applicationYaml.bytes
+        fatJarCopy << fatJar.bytes
+
+        String stackName = "${artifactId}"
+        String uuid = UUID.randomUUID().toString()
+        String s3Url = "s3://${bucketName}/${uuid}.jar"
+
+        // The Java SDK Cloud Formation client doesn't support the package and deploy API yet so we will use the AWS CLI on the command line
+        // aws cloudformation package, doesn't seem to play well with Java fat jars or dist zips, so we will need to duplicate its logic manually with s3 copy and ant replace.
+        // executeOnShell("aws cloudformation package " +
+        //         "--template-file application.yaml " +
+        //         "--output-template-file deploy.yaml " +
+        //         "--s3-bucket cerberus-lambda-sam", sam, true)
+
+        // package normally uploads the artifact to s3 with a random name and copies the template and injects the s3 url.
+        // we can copy that behavior with ant replace and s3 copy, but upload an artifact that Lambda can process properly with Java
+        // hopefully they fix this soon and add the logic the the Java SDK so we don't have to do all of this.
+
+        ant.replace(file: appYamlCopy.absolutePath, token: '@@CODE_URI@@', value: s3Url)
+        executeOnShell("aws --region ${region} s3 cp ./${artifactId}.jar ${s3Url}", sam, true)
+
+        // Now that the SAM has been packaged and artifacts have been uploaded we can deploy
+        executeOnShell("aws --region ${region} cloudformation deploy " +
+                "--template-file ${sam.absolutePath}/deploy.yaml " +
+                "--stack-name ${stackName} " +
+                "--capabilities CAPABILITY_IAM ", sam, true)
+//                "--parameter-overrides Key=${value}", sam, true)
+    }
+}
+
+/**
+ * Runs a command on the command line, streaming the output to STDOUT
+ */
+def executeOnShell(String command, File workingDir = new File("./"), boolean print = false) {
+    logger.lifecycle "Executing command: ${command}"
+    def commandArray = new String[3]
+    commandArray[0] = "sh"
+    commandArray[1] = "-c"
+    commandArray[2] = command
+    def process = new ProcessBuilder(commandArray)
+            .directory(workingDir)
+            .redirectErrorStream(true)
+            .start()
+    def stdout = []
+    process.inputStream.eachLine { line ->
+        stdout.add line
+        if (print) {
+            logger.lifecycle line
+        }
+    }
+    process.waitFor()
+    if (process.exitValue()) {
+        def msg = "Failed to execute command exiting"
+        logger.lifecycle msg
+        throw new GradleException(msg)
+    }
+    return stdout
+}

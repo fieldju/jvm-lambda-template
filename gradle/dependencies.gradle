@@ -1,0 +1,19 @@
+repositories {
+    jcenter()
+}
+
+dependencies {
+    // Lambda logger impl
+    compile group: 'com.amazonaws', name: 'aws-lambda-java-log4j', version: '1.0.0'
+
+    // Groovy stuffs
+    compile group: 'org.codehaus.groovy', name: 'groovy-all', version: '2.4.7'
+
+    // Scala stuffs
+    compile 'org.scala-lang:scala-library:2.11.1'
+
+    // @fieldju's favorite http client
+    compile 'com.squareup.okhttp3:okhttp:3.6.0'
+
+    testCompile 'junit:junit:4.12'
+}

@@ -1,0 +1,4 @@
+apply plugin: 'groovy'
+apply plugin: 'java'
+apply plugin: 'scala'
+apply plugin: "com.github.johnrengelman.shadow"
