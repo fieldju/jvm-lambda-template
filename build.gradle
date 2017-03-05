@@ -6,8 +6,6 @@ buildscript {
 apply from: file('gradle/plugins.gradle')
 // add and configure the integration test source set and tasks
 apply from: file('gradle/integration.gradle')
-// add the deploy configuration
-apply from: file('gradle/deploy.gradle')
 // add the dependencies
 apply from: file('gradle/dependencies.gradle')
 
@@ -19,3 +17,22 @@ shadowJar {
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
+
+// load environment specific props from env profiles
+def environment = project.hasProperty('environment') ? project.'environment' : 'default'
+Properties props = new Properties()
+props.load(new FileInputStream("$project.rootDir/profile/"+"$environment"+".properties"))
+props.each { prop ->
+    project.ext.set(prop.key, prop.value)
+}
+
+'aws-sam-deployer' {
+    region = project.region
+    s3Bucket = project.s3Bucket
+    s3Prefix = "${project.getName()}-artifact-uploads"
+    stackName = "${project.environment}-jvm-lambda-template"
+    samTemplatePath = "${project.rootDir.absolutePath}${File.separator}application.yaml"
+    tokenArtifactMap = [
+            '@@CODE_URI@@': "${project.buildDir.absolutePath}${File.separator}libs${File.separator}jvm-lambda-template.jar"
+    ]
+}
