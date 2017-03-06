@@ -26,6 +26,7 @@ props.each { prop ->
     project.ext.set(prop.key, prop.value)
 }
 
+// See https://github.com/fieldju/gradle-aws-sam-deployer-plugin for more information
 'aws-sam-deployer' {
     region = project.region
     s3Bucket = project.s3Bucket
