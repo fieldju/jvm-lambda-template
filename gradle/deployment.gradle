@@ -1,5 +1,5 @@
 // load environment specific props from env profiles
-def environment = project.hasProperty('environment') ? project.'environment' : 'default'
+def environment = project.hasProperty('env') ? project.'env' : 'default'
 Properties props = new Properties()
 props.load(new FileInputStream("$project.rootDir/profile/"+"$environment"+".properties"))
 props.each { prop ->
@@ -14,6 +14,6 @@ props.each { prop ->
     stackName = "${project.environment}-jvm-lambda-template"
     samTemplatePath = "${project.rootDir.absolutePath}${File.separator}application.yaml"
     tokenArtifactMap = [
-            '@@CODE_URI@@': "${project.buildDir.absolutePath}${File.separator}libs${File.separator}jvm-lambda-template.jar"
+            '@@CODE_URI@@': "${project.buildDir.absolutePath}${File.separator}libs${File.separator}${project.getName()}.jar"
     ]
 }
