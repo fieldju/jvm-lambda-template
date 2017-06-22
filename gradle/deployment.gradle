@@ -11,7 +11,7 @@ props.each { prop ->
     region = project.region
     s3Bucket = project.s3Bucket
     s3Prefix = "${project.getName()}-artifact-uploads"
-    stackName = "${project.environment}-jvm-lambda-template"
+    stackName = "${project.environment}-}-${project.name}"
     samTemplatePath = "${project.rootDir.absolutePath}${File.separator}application.yaml"
     tokenArtifactMap = [
             '@@CODE_URI@@': "${project.buildDir.absolutePath}${File.separator}libs${File.separator}${project.getName()}.jar"
